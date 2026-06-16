@@ -1,0 +1,100 @@
+version: "3.9"
+
+services:
+
+  # ── MySQL Database ──────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: automl_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: automl_db
+      MYSQL_USER: automl_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-automlpass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: automl_backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: mysql+pymysql://automl_user:${MYSQL_PASSWORD:-automlpass}@db:3306/automl_db
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/models:/app/models
+      - ./backend/artifacts:/app/artifacts
+      - ./backend/logs:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Frontend (React + Nginx) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: automl_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+
+  # ── MLflow Tracking Server ───────────────────────────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.12.1
+    container_name: automl_mlflow
+    restart: unless-stopped
+    command: >
+      mlflow server
+      --backend-store-uri mysql+pymysql://automl_user:${MYSQL_PASSWORD:-automlpass}@db:3306/automl_db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Redis (optional – for Celery background jobs) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: automl_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mysql_data:
+  mlflow_artifacts:
+  redis_data:
