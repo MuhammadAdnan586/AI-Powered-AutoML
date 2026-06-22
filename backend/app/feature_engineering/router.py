@@ -12,19 +12,19 @@ import logging
 from .service import FeatureEngineeringService
 from ..database.connection import get_db
 
-router = APIRouter(prefix="/api/feature-engineering", tags=["Feature Engineering"])
+router = APIRouter(prefix="/feature-engineering", tags=["Feature Engineering"])
 logger = logging.getLogger(__name__)
 
 
 class FeatureEngineeringConfig(BaseModel):
     processed_dataset_id: int
     target_column: str
-    problem_type: str = "classification"
-    auto_generate: bool = True
-    remove_low_variance: bool = True
-    remove_correlated: bool = True
-    select_best: bool = True
-    k_best: int = 20
+    problem_type: str = "regression"
+    auto_generate: bool = False
+    remove_low_variance: bool = False
+    remove_correlated: bool = False
+    select_best: bool = False
+    k_best: int = 50
     variance_threshold: float = 0.01
     correlation_threshold: float = 0.95
 
@@ -121,5 +121,38 @@ async def get_correlation_matrix(dataset_id: int, db: Session = Depends(get_db))
             "matrix": corr.values.tolist()
         })
     
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/preview/{engineered_dataset_id}")
+async def preview_engineered_dataset(engineered_dataset_id: int, rows: int = 10, db: Session = Depends(get_db)):
+    """Preview the final feature-engineered dataset — fully numeric, ready for training."""
+    try:
+        import pandas as pd
+        from ..datasets.models import EngineeredDataset
+
+        engineered = db.query(EngineeredDataset).filter(
+            EngineeredDataset.id == engineered_dataset_id
+        ).first()
+        if not engineered:
+            raise HTTPException(status_code=404, detail="Engineered dataset not found")
+
+        df = pd.read_csv(engineered.file_path)
+        info = {
+            "shape": {"rows": int(df.shape[0]), "columns": int(df.shape[1])},
+            "columns": list(df.columns),
+            "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
+            "missing_values": {col: int(df[col].isnull().sum()) for col in df.columns},
+            "duplicate_rows": int(df.duplicated().sum()),
+            "numeric_columns": list(df.select_dtypes(include=["number"]).columns),
+            "categorical_columns": list(df.select_dtypes(include=["object", "category"]).columns),
+            "sample_data": df.head(rows).to_dict(orient="records"),
+        }
+
+        return JSONResponse(content={
+            "success": True,
+            "engineered_dataset_id": engineered_dataset_id,
+            "info": info
+        })
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

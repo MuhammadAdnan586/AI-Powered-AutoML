@@ -7,8 +7,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, T
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database.base import Base
-
+from app.database.connection import Base
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -23,4 +22,4 @@ class Notification(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="notifications")
+    user = relationship("User")

@@ -13,11 +13,11 @@ export default function FeatureEngineeringPage() {
   const [activeView, setActiveView] = useState("config"); // config | results | correlation
 
   const [config, setConfig] = useState({
-    auto_generate: true,
+    auto_generate: false,
     remove_low_variance: true,
     remove_correlated: true,
     select_best: true,
-    k_best: 20,
+    k_best: 8,
     variance_threshold: 0.01,
     correlation_threshold: 0.95,
   });

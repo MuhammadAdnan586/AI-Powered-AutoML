@@ -1,40 +1,31 @@
 """
-Module 4 – Background Scheduler
+Module 4 - Background Scheduler
 Uses APScheduler to run cron-based retraining jobs.
-Scheduler is started/stopped with FastAPI lifespan.
 """
-
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from sqlalchemy.orm import Session
 import logging
-
-from app.config.settings import settings
 from app.database.session import SessionLocal
 
 logger = logging.getLogger("scheduler")
 
-# Singleton scheduler instance
 _scheduler: AsyncIOScheduler | None = None
 
 
 def get_scheduler() -> AsyncIOScheduler:
     global _scheduler
     if _scheduler is None:
-        jobstores = {
-            "default": SQLAlchemyJobStore(url=settings.DATABASE_URL)
-        }
-        _scheduler = AsyncIOScheduler(jobstores=jobstores)
+        # Memory jobstore — no DB connection needed for scheduler itself
+        _scheduler = AsyncIOScheduler(
+            jobstores={"default": {"type": "memory"}},
+            timezone="UTC"
+        )
     return _scheduler
 
 
-# ── Core job function ─────────────────────────────────────────────────────────
-
 async def _run_retraining_job(schedule_id: int, user_id: int):
-    """Entry point called by APScheduler for each scheduled retraining."""
     from app.retraining.service import RetrainingService
-
     db: Session = SessionLocal()
     try:
         service = RetrainingService(db)
@@ -46,39 +37,28 @@ async def _run_retraining_job(schedule_id: int, user_id: int):
         db.close()
 
 
-# ── Schedule management ───────────────────────────────────────────────────────
-
 def add_retraining_job(schedule_id: int, user_id: int, cron_expression: str):
-    """Register a new cron job in APScheduler."""
     scheduler = get_scheduler()
     job_id = f"retrain_{schedule_id}"
-
-    # Parse cron expression: "min hour day month dow"
     parts = cron_expression.split()
     if len(parts) != 5:
         raise ValueError(f"Invalid cron expression: {cron_expression}")
-
     minute, hour, day, month, day_of_week = parts
-
     scheduler.add_job(
         _run_retraining_job,
         CronTrigger(
-            minute=minute,
-            hour=hour,
-            day=day,
-            month=month,
-            day_of_week=day_of_week,
+            minute=minute, hour=hour, day=day,
+            month=month, day_of_week=day_of_week,
         ),
         id=job_id,
         args=[schedule_id, user_id],
         replace_existing=True,
-        misfire_grace_time=3600,  # 1 hour grace
+        misfire_grace_time=3600,
     )
-    logger.info(f"Registered retraining job: {job_id} with cron '{cron_expression}'")
+    logger.info(f"Registered retraining job: {job_id}")
 
 
 def remove_retraining_job(schedule_id: int):
-    """Remove a cron job from APScheduler."""
     scheduler = get_scheduler()
     job_id = f"retrain_{schedule_id}"
     if scheduler.get_job(job_id):
@@ -87,11 +67,10 @@ def remove_retraining_job(schedule_id: int):
 
 
 def sync_jobs_from_db():
-    """
-    On startup: load all active retraining schedules from DB
-    and register them with the scheduler.
-    """
-    from app.retraining.models import RetrainingSchedule
+    from app.retraining.models import RetrainingSchedule, RetrainingLog  # noqa
+    from app.auth.models import User  # noqa
+    from app.datasets.models import Dataset  # noqa
+    from app.notifications.models import Notification  # noqa
 
     db: Session = SessionLocal()
     try:
@@ -99,11 +78,11 @@ def sync_jobs_from_db():
         for sched in schedules:
             add_retraining_job(sched.id, sched.user_id, sched.cron_expression)
         logger.info(f"Synced {len(schedules)} retraining jobs from database")
+    except Exception as e:
+        logger.warning(f"Could not sync jobs from DB (first run is normal): {e}")
     finally:
         db.close()
 
-
-# ── FastAPI lifespan integration ──────────────────────────────────────────────
 
 async def start_scheduler():
     scheduler = get_scheduler()

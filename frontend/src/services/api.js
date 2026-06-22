@@ -1,6 +1,35 @@
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Token helpers
+export const setTokens = (accessToken, refreshToken) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("access_token", accessToken);
+    if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
+  }
+};
+
+export const getAccessToken = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("access_token");
+  }
+  return null;
+};
+
+export const getRefreshToken = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("refresh_token");
+  }
+  return null;
+};
+
+export const clearTokens = () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+  }
+};
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -9,7 +38,7 @@ const api = axios.create({
 
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -21,8 +50,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("access_token");
-      window.location.href = "/login";
+      clearTokens();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }

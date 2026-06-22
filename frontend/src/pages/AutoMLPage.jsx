@@ -41,14 +41,14 @@ export default function AutoMLPage() {
   const [testSize, setTestSize] = useState(0.2);
   const [hyperparamTuning, setHyperparamTuning] = useState(false);
 
-  const [trainingStatus, setTrainingStatus] = useState(null); // null | 'loading' | 'training' | 'completed' | 'failed'
+  const [trainingStatus, setTrainingStatus] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [bestModel, setBestModel] = useState(null);
   const [results, setResults] = useState(null);
-  const [activeTab, setActiveTab] = useState("setup"); // setup | training | leaderboard | details
+  const [activeTab, setActiveTab] = useState("setup");
+  const [downloading, setDownloading] = useState({ model: false, dataset: false });
 
-  // Fetch datasets on mount
   useEffect(() => {
     fetchDatasets();
     return () => {
@@ -58,7 +58,7 @@ export default function AutoMLPage() {
 
   const fetchDatasets = async () => {
     try {
-      const res = await api.get("/api/datasets");
+      const res = await api.get("/api/v1/datasets/engineered");
       setDatasets(res.data.datasets || []);
     } catch (err) {
       console.error("Error fetching datasets:", err);
@@ -112,8 +112,6 @@ export default function AutoMLPage() {
       const sid = res.data.session_id;
       setSessionId(sid);
       setTrainingStatus("training");
-
-      // Start polling
       pollRef.current = setInterval(() => pollStatus(sid), 3000);
     } catch (err) {
       setTrainingStatus("failed");
@@ -145,19 +143,47 @@ export default function AutoMLPage() {
     }
   };
 
+  const handleDownload = async (type) => {
+    if (!sessionId) return;
+    setDownloading((prev) => ({ ...prev, [type]: true }));
+    try {
+      const endpoint =
+        type === "model"
+          ? `/api/v1/automl/download-model/${sessionId}`
+          : `/api/v1/automl/download-dataset/${sessionId}`;
+
+      const res = await api.get(endpoint, { responseType: "blob" });
+
+      const contentDisposition = res.headers["content-disposition"] || "";
+      let filename =
+        type === "model"
+          ? `best_model_${sessionId.slice(0, 8)}.pkl`
+          : `feature_engineered_dataset_${sessionId.slice(0, 8)}.csv`;
+
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(`Download failed:`, err);
+      alert("Download failed. Please try again.");
+    } finally {
+      setDownloading((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
   const getPrimaryMetric = (modelResult) => {
     if (problemType === "classification") {
-      return {
-        label: "Accuracy",
-        value: modelResult.metrics?.accuracy,
-        percent: true,
-      };
+      return { label: "Accuracy", value: modelResult.metrics?.accuracy, percent: true };
     }
-    return {
-      label: "R² Score",
-      value: modelResult.metrics?.r2_score,
-      percent: false,
-    };
+    return { label: "R² Score", value: modelResult.metrics?.r2_score, percent: false };
   };
 
   const getBarWidth = (value, maxValue) => {
@@ -165,9 +191,10 @@ export default function AutoMLPage() {
     return `${Math.min((value / maxValue) * 100, 100)}%`;
   };
 
-  const maxScore = leaderboard.length > 0
-    ? Math.max(...leaderboard.map((m) => getPrimaryMetric(m).value || 0))
-    : 1;
+  const maxScore =
+    leaderboard.length > 0
+      ? Math.max(...leaderboard.map((m) => getPrimaryMetric(m).value || 0))
+      : 1;
 
   return (
     <div style={styles.page}>
@@ -180,9 +207,7 @@ export default function AutoMLPage() {
         {trainingStatus === "completed" && (
           <div style={styles.headerBadge}>
             <span>✅ Training Complete</span>
-            <span style={styles.bestModelBadge}>
-              Best: {bestModel?.replace("_", " ")}
-            </span>
+            <span style={styles.bestModelBadge}>Best: {bestModel?.replace("_", " ")}</span>
           </div>
         )}
       </div>
@@ -192,10 +217,7 @@ export default function AutoMLPage() {
         {["setup", "training", "leaderboard", "details"].map((tab) => (
           <button
             key={tab}
-            style={{
-              ...styles.tab,
-              ...(activeTab === tab ? styles.activeTab : {}),
-            }}
+            style={{ ...styles.tab, ...(activeTab === tab ? styles.activeTab : {}) }}
             onClick={() => setActiveTab(tab)}
           >
             {tab === "setup" && "⚙️ "}
@@ -212,7 +234,6 @@ export default function AutoMLPage() {
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Training Configuration</h2>
           <div style={styles.grid2}>
-            {/* Dataset selection */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Dataset</label>
               <select
@@ -232,15 +253,12 @@ export default function AutoMLPage() {
               </select>
             </div>
 
-            {/* Target column */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Target Column</label>
               <select
                 style={styles.select}
                 value={targetColumn}
-                onChange={(e) => {
-                  setTargetColumn(e.target.value);
-                }}
+                onChange={(e) => setTargetColumn(e.target.value)}
                 onBlur={detectProblemType}
                 disabled={!columns.length}
               >
@@ -251,7 +269,6 @@ export default function AutoMLPage() {
               </select>
             </div>
 
-            {/* Problem type */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Problem Type</label>
               <div style={styles.radioGroup}>
@@ -270,7 +287,6 @@ export default function AutoMLPage() {
               </div>
             </div>
 
-            {/* Test size */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Test Size: {(testSize * 100).toFixed(0)}%</label>
               <input
@@ -288,12 +304,11 @@ export default function AutoMLPage() {
             </div>
           </div>
 
-          {/* Hyperparameter tuning toggle */}
           <div style={styles.toggleRow}>
             <div>
               <strong>Hyperparameter Tuning</strong>
               <p style={styles.toggleDesc}>
-                Use GridSearchCV to find optimal parameters. This takes longer but improves accuracy.
+                Use GridSearchCV to find optimal parameters. Takes longer but improves accuracy.
               </p>
             </div>
             <button
@@ -309,10 +324,7 @@ export default function AutoMLPage() {
           </div>
 
           <button
-            style={{
-              ...styles.trainBtn,
-              opacity: !selectedDataset || !targetColumn ? 0.5 : 1,
-            }}
+            style={{ ...styles.trainBtn, opacity: !selectedDataset || !targetColumn ? 0.5 : 1 }}
             onClick={startTraining}
             disabled={!selectedDataset || !targetColumn}
           >
@@ -391,9 +403,8 @@ export default function AutoMLPage() {
                 </div>
                 <div style={styles.statCard}>
                   <div style={{ ...styles.statValue, color: "#059669" }}>
-                    {leaderboard[0] && (
-                      `${(getPrimaryMetric(leaderboard[0]).value * 100).toFixed(1)}%`
-                    )}
+                    {leaderboard[0] &&
+                      `${(getPrimaryMetric(leaderboard[0]).value * 100).toFixed(1)}%`}
                   </div>
                   <div style={styles.statLabel}>Best Score</div>
                 </div>
@@ -404,6 +415,35 @@ export default function AutoMLPage() {
                   <div style={styles.statLabel}>Problem Type</div>
                 </div>
               </div>
+
+              {/* ✅ Download Buttons */}
+              {sessionId && (
+                <div style={styles.downloadRow}>
+                  <button
+                    style={{
+                      ...styles.downloadBtn,
+                      opacity: downloading.model ? 0.7 : 1,
+                      cursor: downloading.model ? "not-allowed" : "pointer",
+                    }}
+                    onClick={() => handleDownload("model")}
+                    disabled={downloading.model}
+                  >
+                    {downloading.model ? "⏳ Downloading..." : "⬇️ Download Trained Model (.pkl)"}
+                  </button>
+                  <button
+                    style={{
+                      ...styles.downloadBtn,
+                      background: "#059669",
+                      opacity: downloading.dataset ? 0.7 : 1,
+                      cursor: downloading.dataset ? "not-allowed" : "pointer",
+                    }}
+                    onClick={() => handleDownload("dataset")}
+                    disabled={downloading.dataset}
+                  >
+                    {downloading.dataset ? "⏳ Downloading..." : "⬇️ Download Feature-Engineered Dataset (.csv)"}
+                  </button>
+                </div>
+              )}
 
               {/* Leaderboard table */}
               <div style={styles.card}>
@@ -424,12 +464,9 @@ export default function AutoMLPage() {
                         <div style={styles.rankBadge}>
                           {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
                         </div>
-
                         <div style={styles.modelInfo}>
                           <div style={styles.modelNameRow}>
-                            <span style={styles.modelIcon}>
-                              {MODEL_ICONS[model.display_name] || "🤖"}
-                            </span>
+                            <span style={styles.modelIcon}>{MODEL_ICONS[model.display_name] || "🤖"}</span>
                             <span style={styles.modelDisplayName}>{model.display_name}</span>
                             <span
                               style={{
@@ -465,11 +502,8 @@ export default function AutoMLPage() {
                             <span style={styles.metricChip}>⏱ {model.training_time_seconds}s</span>
                           </div>
                         </div>
-
                         <div style={styles.scoreSection}>
-                          <div style={styles.scoreValue}>
-                            {(metric.value * 100).toFixed(1)}%
-                          </div>
+                          <div style={styles.scoreValue}>{(metric.value * 100).toFixed(1)}%</div>
                           <div style={styles.scoreLabel}>{metric.label}</div>
                           <div style={styles.scoreBar}>
                             <div
@@ -529,7 +563,6 @@ export default function AutoMLPage() {
               <span style={styles.detailValue}>{results.hyperparameter_tuning ? "Yes ✓" : "No"}</span>
             </div>
           </div>
-
           {results.failed_models && results.failed_models.length > 0 && (
             <div style={styles.failedModels}>
               <h3 style={{ color: "#dc2626" }}>❌ Failed Models</h3>
@@ -553,7 +586,7 @@ const styles = {
   subtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "14px" },
   headerBadge: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" },
   bestModelBadge: { background: "#7c3aed", color: "#fff", padding: "4px 12px", borderRadius: "20px", fontSize: "13px" },
-  tabs: { display: "flex", gap: "4px", marginBottom: "24px", borderBottom: "2px solid #e5e7eb", paddingBottom: "0" },
+  tabs: { display: "flex", gap: "4px", marginBottom: "24px", borderBottom: "2px solid #e5e7eb" },
   tab: { padding: "10px 20px", border: "none", borderRadius: "8px 8px 0 0", background: "transparent", cursor: "pointer", color: "#6b7280", fontSize: "14px", fontWeight: 500 },
   activeTab: { background: "#7c3aed", color: "#fff" },
   card: { background: "#fff", borderRadius: "12px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "20px" },
@@ -588,6 +621,8 @@ const styles = {
   statCard: { background: "#fff", borderRadius: "12px", padding: "20px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
   statValue: { fontSize: "20px", fontWeight: 700, color: "#111827", marginBottom: "4px" },
   statLabel: { fontSize: "12px", color: "#6b7280" },
+  downloadRow: { display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap" },
+  downloadBtn: { padding: "12px 24px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, fontSize: "14px", cursor: "pointer", transition: "opacity 0.2s" },
   leaderboardTable: { display: "flex", flexDirection: "column", gap: "12px" },
   leaderboardRow: { display: "grid", gridTemplateColumns: "50px 1fr 130px", gap: "16px", alignItems: "center", padding: "16px", background: "#f9fafb", borderRadius: "10px", border: "1px solid #e5e7eb" },
   winnerRow: { background: "#faf5ff", border: "1px solid #ddd6fe" },

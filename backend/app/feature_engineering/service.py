@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module 2 - Feature Engineering Service
 Auto-generate useful features from existing data
 """
@@ -14,19 +14,30 @@ logger = logging.getLogger(__name__)
 
 
 class FeatureEngineeringService:
+
+    def auto_generate_features(self, df, target_column=None):
+        """Disabled - returns dataframe as-is to preserve original columns."""
+        report = {
+            'original_features': len(df.columns),
+            'new_features_generated': 0,
+            'total_features': len(df.columns),
+            'features_added': []
+        }
+        return df.copy(), report
     
     def __init__(self):
         self.new_features: List[str] = []
         self.removed_features: List[str] = []
         self.feature_report: Dict[str, Any] = {}
 
-    def auto_generate_features(
+    def auto_generate_features_DISABLED(
         self, 
         df: pd.DataFrame, 
         target_column: Optional[str] = None
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Automatically generate new features based on existing columns.
+        Only interaction and ratio features â€” no log/sqrt/squared to avoid column explosion.
         """
         df_fe = df.copy()
         new_features = []
@@ -35,10 +46,10 @@ class FeatureEngineeringService:
         if target_column and target_column in numeric_cols:
             numeric_cols.remove(target_column)
         
-        # 1. Polynomial features for numeric columns (pairs)
+        # 1. Interaction & Ratio features â€” limit to first 3 numeric cols only
         if len(numeric_cols) >= 2:
-            for i in range(min(len(numeric_cols), 5)):
-                for j in range(i + 1, min(len(numeric_cols), 5)):
+            for i in range(min(len(numeric_cols), 3)):
+                for j in range(i + 1, min(len(numeric_cols), 3)):
                     col1, col2 = numeric_cols[i], numeric_cols[j]
                     
                     # Interaction feature
@@ -53,34 +64,14 @@ class FeatureEngineeringService:
                         df_fe[feat_name2].fillna(0, inplace=True)
                         new_features.append({'name': feat_name2, 'type': 'ratio'})
         
-        # 2. Statistical features for numeric columns
-        for col in numeric_cols[:10]:  # Limit to first 10
-            # Log transform (for positive values)
-            if df_fe[col].min() > 0:
-                feat_name = f"{col}_log"
-                df_fe[feat_name] = np.log1p(df_fe[col])
-                new_features.append({'name': feat_name, 'type': 'log_transform'})
-            
-            # Square root (for positive values)
-            if df_fe[col].min() >= 0:
-                feat_name = f"{col}_sqrt"
-                df_fe[feat_name] = np.sqrt(df_fe[col])
-                new_features.append({'name': feat_name, 'type': 'sqrt_transform'})
-            
-            # Squared feature
-            feat_name = f"{col}_squared"
-            df_fe[feat_name] = df_fe[col] ** 2
-            new_features.append({'name': feat_name, 'type': 'polynomial'})
-        
-        # 3. Aggregate statistical features (row-wise)
+        # 2. Aggregate statistical features (row-wise) â€” only if enough columns
         if len(numeric_cols) >= 3:
             df_fe['row_mean'] = df_fe[numeric_cols].mean(axis=1)
             df_fe['row_std'] = df_fe[numeric_cols].std(axis=1)
             df_fe['row_max'] = df_fe[numeric_cols].max(axis=1)
             df_fe['row_min'] = df_fe[numeric_cols].min(axis=1)
-            df_fe['row_range'] = df_fe['row_max'] - df_fe['row_min']
             
-            for feat in ['row_mean', 'row_std', 'row_max', 'row_min', 'row_range']:
+            for feat in ['row_mean', 'row_std', 'row_max', 'row_min']:
                 new_features.append({'name': feat, 'type': 'row_aggregate'})
         
         self.new_features = [f['name'] for f in new_features]
@@ -105,7 +96,6 @@ class FeatureEngineeringService:
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Select the K best features using statistical tests.
-        
         Methods: 'f_test', 'mutual_info', 'auto'
         """
         if target_column not in df.columns:
@@ -120,17 +110,19 @@ class FeatureEngineeringService:
         
         k = min(k, len(X.columns))
         
-        # Choose scoring function
-        if problem_type == 'classification':
+        # Choose scoring function based on problem type
+        if problem_type == 'regression':
+            score_func = f_regression
+        elif problem_type == 'classification':
             if method == 'mutual_info' or (method == 'auto' and k > 15):
                 score_func = mutual_info_classif
             else:
                 score_func = f_classif
         else:
-            score_func = f_regression
+            score_func = f_regression  # default to regression
         
         selector = SelectKBest(score_func=score_func, k=k)
-        X_selected = selector.fit_transform(X, y)
+        selector.fit_transform(X, y)
         
         selected_features = X.columns[selector.get_support()].tolist()
         scores = selector.scores_
@@ -141,8 +133,6 @@ class FeatureEngineeringService:
             'score': scores
         }).sort_values('score', ascending=False)
         
-        # Keep target + selected features
-        selected_cols = selected_features + [target_column]
         # Also keep non-numeric columns (not in X)
         non_numeric = [col for col in df.columns if col not in X.columns and col != target_column]
         final_cols = list(set(selected_features + non_numeric + [target_column]))
@@ -218,7 +208,7 @@ class FeatureEngineeringService:
         self,
         df: pd.DataFrame,
         target_column: str,
-        problem_type: str = 'classification',
+        problem_type: str = 'regression',
         config: Optional[Dict[str, Any]] = None
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Run complete feature engineering pipeline."""
@@ -229,7 +219,7 @@ class FeatureEngineeringService:
                 'remove_low_variance': True,
                 'remove_correlated': True,
                 'select_best': True,
-                'k_best': 20,
+                'k_best': 15,
                 'variance_threshold': 0.01,
                 'correlation_threshold': 0.95
             }
@@ -273,7 +263,7 @@ class FeatureEngineeringService:
         if config.get('select_best', True):
             df, select_report = self.select_best_features(
                 df, target_column, problem_type,
-                k=config.get('k_best', 20)
+                k=config.get('k_best', 15)
             )
             report['steps'].append({
                 'step': 'feature_selection',
@@ -283,3 +273,5 @@ class FeatureEngineeringService:
         
         report['final_shape'] = list(df.shape)
         return df, report
+
+

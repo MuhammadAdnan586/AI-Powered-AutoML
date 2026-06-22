@@ -32,7 +32,7 @@ export default function PreprocessingPage() {
 
   const fetchDatasets = async () => {
     try {
-      const res = await api.get("/api/datasets");
+      const res = await api.get("/api/v1/datasets/");
       setDatasets(res.data.datasets || []);
     } catch (e) {
       console.error(e);
@@ -43,7 +43,7 @@ export default function PreprocessingPage() {
     if (!selectedDataset) return;
     setLoading(true);
     try {
-      const res = await api.get(`/api/preprocessing/analyze?dataset_id=${selectedDataset.id}`);
+      const res = await api.post(`/api/v1/preprocessing/analyze`, { dataset_id: selectedDataset.id });
       setDatasetInfo(res.data.info);
       setCurrentStep(2);
     } catch (e) {
@@ -56,7 +56,7 @@ export default function PreprocessingPage() {
   const detectProblemType = async () => {
     if (!targetColumn) return;
     try {
-      const res = await api.post("/api/preprocessing/detect-problem-type", {
+      const res = await api.post("/api/v1/preprocessing/detect-problem-type", {
         dataset_id: selectedDataset.id,
         target_column: targetColumn,
       });
@@ -69,7 +69,7 @@ export default function PreprocessingPage() {
   const runPreprocessing = async () => {
     setLoading(true);
     try {
-      const res = await api.post("/api/preprocessing/run", {
+      const res = await api.post("/api/v1/preprocessing/run", {
         dataset_id: selectedDataset.id,
         target_column: targetColumn,
         ...config,

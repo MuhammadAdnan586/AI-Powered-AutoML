@@ -1,43 +1,33 @@
-"""
-Database Connection & Session Management
-SQLAlchemy + MySQL
-"""
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
-from app.config.settings import settings
+from dotenv import load_dotenv
+import os
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Create engine with connection pooling
+# .env file load karo
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env'))
+
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/automl_saas")
+APP_DEBUG = os.getenv("APP_DEBUG", "false").lower() == "true"
+
 engine = create_engine(
-    settings.DATABASE_URL,
+    DATABASE_URL,
     poolclass=QueuePool,
     pool_size=10,
     max_overflow=20,
-    pool_pre_ping=True,          # Test connections before use
-    pool_recycle=3600,           # Recycle connections every 1 hour
-    echo=settings.APP_DEBUG,     # Log SQL in debug mode
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    echo=APP_DEBUG,
 )
 
-# Session factory
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
-
-# Base class for all models
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-
 def get_db():
-    """
-    FastAPI dependency: provides a DB session per request.
-    Automatically closes session after request.
-    """
     db = SessionLocal()
     try:
         yield db
@@ -48,16 +38,12 @@ def get_db():
     finally:
         db.close()
 
-
 def create_tables():
-    """Create all tables defined in models"""
     from app.auth.models import User, RefreshToken
-    from app.datasets.models import Dataset, DatasetVersion
+    from app.datasets.models import Dataset, DatasetVersion, ProcessedDataset, EngineeredDataset
+    from app.datasets.models_module2 import TrainingSession, ModelResult
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Database tables created successfully")
 
-
 def drop_tables():
-    """Drop all tables (use with caution!)"""
     Base.metadata.drop_all(bind=engine)
-    logger.warning("⚠️ All database tables dropped")

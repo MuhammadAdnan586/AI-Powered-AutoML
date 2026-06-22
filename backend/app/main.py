@@ -12,7 +12,6 @@ from app.database.connection import create_tables
 import logging
 import time
 
-# ─── Logger Setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO if not settings.APP_DEBUG else logging.DEBUG,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -21,38 +20,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ─── Startup/Shutdown ─────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """App startup and shutdown events"""
-    logger.info(f"🚀 Starting {settings.APP_NAME} [{settings.APP_ENV}]")
+    logger.info(f"Starting {settings.APP_NAME} [{settings.APP_ENV}]")
     create_tables()
     yield
-    logger.info("👋 Shutting down...")
+    logger.info("Shutting down...")
 
 
-# ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
     title=settings.APP_NAME,
-    description="AI-Powered AutoML SaaS Platform — No-code machine learning for everyone",
+    description="AI-Powered AutoML SaaS Platform",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
 
-
-# ─── CORS Middleware ──────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ─── Request Timing Middleware ─────────────────────────────────────────────────
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
@@ -62,13 +55,11 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 
-# ─── Global Exception Handlers ────────────────────────────────────────────────
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Return clean validation error messages"""
     errors = []
     for error in exc.errors():
-        field = " → ".join(str(loc) for loc in error["loc"] if loc != "body")
+        field = " -> ".join(str(loc) for loc in error["loc"] if loc != "body")
         errors.append({"field": field, "message": error["msg"]})
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -85,7 +76,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
-# ─── Include Routers ─────────────────────────────────────────────────────────
+# --- Module 1: Foundation ---
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
 from app.datasets.router import router as datasets_router
@@ -97,7 +88,44 @@ app.include_router(datasets_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 
 
-# ─── Health Check ─────────────────────────────────────────────────────────────
+# --- Module 2/3/4: dynamically registered, won't crash app if one fails ---
+loaded_modules = []
+failed_modules = []
+
+def safe_register(import_path: str, router_attr: str, prefix: str, name: str):
+    try:
+        module = __import__(import_path, fromlist=[router_attr])
+        router_obj = getattr(module, router_attr)
+        app.include_router(router_obj, prefix=prefix)
+        loaded_modules.append(name)
+    except Exception as e:
+        failed_modules.append((name, str(e)))
+        logger.error(f"Failed to load module '{name}': {e}")
+
+
+# --- Module 2: AutoML Engine ---
+safe_register("app.preprocessing.router", "router", "/api/v1", "Preprocessing")
+safe_register("app.feature_engineering.router", "router", "/api/v1", "Feature Engineering")
+safe_register("app.automl.router", "router", "/api/v1", "AutoML")
+safe_register("app.benchmark.router", "router", "/api/v1", "Benchmark")
+safe_register("app.training.routes", "router", "/api/v1", "Training")
+safe_register("app.mlflow_tracking.router", "router", "/api/v1", "MLflow Tracking")
+
+# --- Module 3: AI Intelligence ---
+safe_register("app.explainability.routes", "router", "/api/v1", "Explainability")
+safe_register("app.data_quality.routes", "router", "/api/v1", "Data Quality")
+safe_register("app.chatbot.routes", "router", "/api/v1", "Chatbot")
+safe_register("app.reports.routes", "router", "/api/v1", "Reports")
+safe_register("app.model_registry.routes", "router", "/api/v1", "Model Registry")
+
+# --- Module 4: Production & SaaS ---
+safe_register("app.api_generator.routes", "router", "/api/v1", "API Generator")
+safe_register("app.retraining.routes", "router", "/api/v1", "Retraining")
+safe_register("app.notifications.routes", "router", "/api/v1", "Notifications")
+safe_register("app.rbac.routes", "router", "/api/v1", "RBAC")
+safe_register("app.monitoring.routes", "router", "/api/v1", "Monitoring")
+
+
 @app.get("/", tags=["Health"])
 def root():
     return {
@@ -105,9 +133,16 @@ def root():
         "app": settings.APP_NAME,
         "version": "1.0.0",
         "docs": "/docs",
+        "loaded_modules": loaded_modules,
+        "failed_modules": [name for name, _ in failed_modules],
     }
 
 
 @app.get("/health", tags=["Health"])
 def health():
-    return {"status": "healthy", "env": settings.APP_ENV}
+    return {
+        "status": "healthy",
+        "env": settings.APP_ENV,
+        "loaded_modules": loaded_modules,
+        "failed_modules": failed_modules,
+    }

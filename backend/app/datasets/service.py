@@ -41,10 +41,15 @@ def validate_file(file: UploadFile) -> str:
 
 
 def read_dataframe(file_path: Path, ext: str) -> pd.DataFrame:
-    """Read CSV or Excel into a DataFrame"""
+    """Read CSV or Excel into a DataFrame — auto-detects encoding"""
     try:
         if ext == "csv":
-            return pd.read_csv(file_path, low_memory=False)
+            for encoding in ["utf-8", "latin-1", "windows-1252", "utf-8-sig", "cp1252"]:
+                try:
+                    return pd.read_csv(file_path, low_memory=False, encoding=encoding)
+                except (UnicodeDecodeError, Exception):
+                    continue
+            raise ValueError("Could not decode CSV with any known encoding")
         elif ext in ("xlsx", "xls"):
             return pd.read_excel(file_path)
         else:
@@ -118,9 +123,9 @@ class DatasetService:
             status=DatasetStatus.processing,
         )
         db.add(dataset)
-        db.flush()  # Get dataset.id without committing
+        db.flush()
 
-        # Process file — extract stats
+        # Process file - extract stats
         try:
             df = read_dataframe(file_path, ext)
             stats = extract_stats(df)
@@ -190,15 +195,44 @@ class DatasetService:
     @staticmethod
     def delete_dataset(db: Session, dataset_id: int, user: User) -> None:
         """Delete dataset and all its files"""
+        from app.datasets.models import ProcessedDataset, EngineeredDataset
+
         dataset = DatasetService.get_dataset(db, dataset_id, user)
 
-        # Delete all version files from disk
+        # Step 1: Get all version IDs
+        version_ids = [v.id for v in dataset.versions]
+
+        # Step 2: Get all processed dataset IDs for this dataset
+        processed_list = db.query(ProcessedDataset).filter(
+            ProcessedDataset.dataset_id == dataset_id
+        ).all()
+        processed_ids = [r.id for r in processed_list]
+
+        # Step 3: Delete engineered datasets
+        if processed_ids:
+            db.query(EngineeredDataset).filter(
+                EngineeredDataset.processed_dataset_id.in_(processed_ids)
+            ).delete(synchronize_session=False)
+
+        # Step 4: Null out version_id FK to break constraint
+        if version_ids:
+            db.query(ProcessedDataset).filter(
+                ProcessedDataset.version_id.in_(version_ids)
+            ).update({"version_id": None}, synchronize_session=False)
+
+        # Step 5: Delete processed datasets
+        db.query(ProcessedDataset).filter(
+            ProcessedDataset.dataset_id == dataset_id
+        ).delete(synchronize_session=False)
+
+        # Step 6: Delete version files from disk
         for version in dataset.versions:
             path = Path(version.file_path)
             if path.exists():
                 path.unlink()
                 logger.info(f"Deleted file: {path}")
 
+        # Step 7: Delete dataset record (versions cascade)
         db.delete(dataset)
         db.commit()
         logger.info(f"Dataset {dataset_id} deleted by user {user.id}")

@@ -37,11 +37,6 @@ async def upload_dataset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Upload a CSV or Excel dataset.
-    Automatically processes: row count, column info, missing values, preview.
-    Creates version v1 automatically.
-    """
     return DatasetService.upload_dataset(db, file, name, description or "", current_user)
 
 
@@ -52,17 +47,78 @@ def list_datasets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all datasets belonging to the current user"""
     return DatasetService.list_datasets(db, current_user, skip=skip, limit=limit)
 
 
+# ✅ Static routes PEHLE — /{dataset_id} se pehle
+@router.get("/processed")
+def list_processed_datasets(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all processed datasets for current user"""
+    from app.datasets.models import ProcessedDataset, Dataset
+    results = (
+        db.query(ProcessedDataset)
+        .join(Dataset, ProcessedDataset.dataset_id == Dataset.id)
+        .filter(Dataset.owner_id == current_user.id)
+        .order_by(ProcessedDataset.created_at.desc())
+        .all()
+    )
+    return {
+        "datasets": [
+            {
+                "id": r.id,
+                "name": f"Processed - {r.dataset_id}",
+                "rows": r.rows_after,
+                "columns": r.columns_after,
+                "target_column": r.target_column,
+                "problem_type": r.problem_type,
+                "created_at": str(r.created_at),
+            }
+            for r in results
+        ]
+    }
+
+
+@router.get("/engineered")
+def list_engineered_datasets(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all engineered datasets for current user"""
+    from app.datasets.models import EngineeredDataset, ProcessedDataset, Dataset
+    results = (
+        db.query(EngineeredDataset)
+        .join(ProcessedDataset, EngineeredDataset.processed_dataset_id == ProcessedDataset.id)
+        .join(Dataset, ProcessedDataset.dataset_id == Dataset.id)
+        .filter(Dataset.owner_id == current_user.id)
+        .order_by(EngineeredDataset.created_at.desc())
+        .all()
+    )
+    return {
+        "datasets": [
+            {
+                "id": r.id,
+                "name": f"Engineered - Dataset #{r.processed_dataset.dataset_id}",
+                "original_name": f"Engineered - Dataset #{r.processed_dataset.dataset_id}",
+                "rows": r.rows,
+                "columns": r.columns,
+                "target_column": r.target_column,
+                "created_at": str(r.created_at),
+            }
+            for r in results
+        ]
+    }
+
+
+# ✅ Dynamic routes BAAD MEIN
 @router.get("/{dataset_id}", response_model=DatasetResponse)
 def get_dataset(
     dataset_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a specific dataset with full details and versions"""
     return DatasetService.get_dataset(db, dataset_id, current_user)
 
 
@@ -73,7 +129,6 @@ def update_dataset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update dataset name or description"""
     return DatasetService.update_dataset(
         db, dataset_id, current_user,
         name=data.name,
@@ -87,7 +142,6 @@ def delete_dataset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Permanently delete a dataset and all its files"""
     DatasetService.delete_dataset(db, dataset_id, current_user)
 
 
@@ -100,10 +154,6 @@ async def create_new_version(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Upload a new version of an existing dataset (v2, v3, ...).
-    Previous active version is automatically deactivated.
-    """
     return DatasetService.create_version(
         db, dataset_id, file, version_label or "", notes or "", current_user
     )
@@ -115,7 +165,6 @@ def list_versions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all versions for a dataset"""
     dataset = DatasetService.get_dataset(db, dataset_id, current_user)
     return dataset.versions
 
@@ -127,11 +176,6 @@ def download_dataset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Download a dataset file.
-    Optionally specify ?version=2 to download a specific version.
-    Defaults to the active version.
-    """
     from app.datasets.models import DatasetVersion
 
     dataset = DatasetService.get_dataset(db, dataset_id, current_user)

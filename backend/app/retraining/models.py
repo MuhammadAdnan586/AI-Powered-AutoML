@@ -1,15 +1,11 @@
 """
 Retraining Schedule – SQLAlchemy ORM
-Stores cron-based retraining jobs per model.
 """
-
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Enum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
-
-from app.database.base import Base
-
+from app.database.connection import Base
 
 class RetrainingStatus(str, enum.Enum):
     PENDING = "pending"
@@ -23,21 +19,18 @@ class RetrainingSchedule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    model_id = Column(Integer, ForeignKey("model_registry.id"), nullable=False)
+    model_name = Column(String(200), nullable=False)
+    model_version = Column(Integer, nullable=True)
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False)
-
-    cron_expression = Column(String(50), nullable=False)   # e.g. "0 2 * * *"
+    cron_expression = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True)
-
     last_run_at = Column(DateTime, nullable=True)
     next_run_at = Column(DateTime, nullable=True)
     last_status = Column(String(20), default=RetrainingStatus.PENDING)
     last_error = Column(Text, nullable=True)
-
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
-    model = relationship("ModelRegistry")
     dataset = relationship("Dataset")
 
 

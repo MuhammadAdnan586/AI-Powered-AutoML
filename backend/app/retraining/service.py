@@ -87,7 +87,7 @@ class RetrainingService:
         4. Save new model version
         5. Notify user
         """
-        from app.model_registry.models import ModelRegistry
+        from app.model_registry.registry import ModelRegistry
         from app.datasets.models import Dataset
 
         sched = self.db.query(RetrainingSchedule).filter_by(

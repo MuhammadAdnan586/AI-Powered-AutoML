@@ -7,8 +7,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database.base import Base
-
+from app.database.connection import Base
 
 class Role(Base):
     __tablename__ = "roles"
@@ -29,7 +28,7 @@ class UserRole(Base):
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
     assigned_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="user_roles")
+    user = relationship("User")
     role = relationship("Role", back_populates="user_roles")
 
 

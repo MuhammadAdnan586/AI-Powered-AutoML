@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module 2 - Preprocessing Service
 Handles: Missing Value Handling, Duplicate Removal, Encoding, Data Cleaning
 """
@@ -23,15 +23,23 @@ class PreprocessingService:
         self.preprocessing_report: Dict[str, Any] = {}
 
     def load_dataset(self, file_path: str) -> pd.DataFrame:
-        """Load CSV or Excel file into DataFrame."""
+        """Load CSV or Excel file into DataFrame with auto encoding detection."""
         try:
             if file_path.endswith('.csv'):
-                df = pd.read_csv(file_path)
+                df = None
+                for encoding in ["utf-8", "latin-1", "windows-1252", "utf-8-sig", "cp1252"]:
+                    try:
+                        df = pd.read_csv(file_path, low_memory=False, encoding=encoding)
+                        break
+                    except (UnicodeDecodeError, Exception):
+                        continue
+                if df is None:
+                    raise ValueError("Could not decode CSV with any known encoding")
             elif file_path.endswith(('.xlsx', '.xls')):
                 df = pd.read_excel(file_path)
             else:
                 raise ValueError(f"Unsupported file format: {file_path}")
-            
+
             logger.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
             return df
         except Exception as e:
@@ -171,21 +179,11 @@ class PreprocessingService:
             unique_count = df_encoded[col].nunique()
             
             if encoding_strategy == 'auto':
-                if unique_count <= 10:
-                    # Label encoding for low cardinality
-                    le = LabelEncoder()
-                    df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))
-                    self.label_encoders[col] = le
-                    encoding_report[col] = f'label_encoded ({unique_count} unique values)'
-                else:
-                    # One-hot encoding for high cardinality (limit to top categories)
-                    top_categories = df_encoded[col].value_counts().nlargest(10).index
-                    df_encoded[col] = df_encoded[col].where(
-                        df_encoded[col].isin(top_categories), other='Other'
-                    )
-                    dummies = pd.get_dummies(df_encoded[col], prefix=col)
-                    df_encoded = pd.concat([df_encoded.drop(columns=[col]), dummies], axis=1)
-                    encoding_report[col] = f'one_hot_encoded (top 10 of {unique_count} values)'
+                # Always use label encoding to keep column count same
+                le = LabelEncoder()
+                df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))
+                self.label_encoders[col] = le
+                encoding_report[col] = f'label_encoded ({unique_count} unique values)'
             
             elif encoding_strategy == 'label':
                 le = LabelEncoder()
@@ -228,8 +226,75 @@ class PreprocessingService:
         
         df_scaled[numeric_cols] = self.scaler.fit_transform(df_scaled[numeric_cols])
         self.preprocessing_report['scaling'] = scaling_method
-        
+
         return df_scaled, scaling_method
+
+    def handle_outliers(
+        self,
+        df: pd.DataFrame,
+        target_column: Optional[str] = None,
+        method: str = 'clip',
+        iqr_multiplier: float = 1.5
+    ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """
+        Detect and handle outliers in numeric columns using the IQR method.
+
+        Methods:
+        - 'clip': Cap outlier values at the IQR bounds (default, keeps all rows)
+        - 'remove': Drop rows that contain an outlier value
+        - 'none': Skip outlier handling entirely
+        """
+        outlier_report: Dict[str, Any] = {}
+        df_clean = df.copy()
+
+        if method == 'none':
+            return df_clean, outlier_report
+
+        numeric_cols = df_clean.select_dtypes(include=[np.number]).columns.tolist()
+        if target_column and target_column in numeric_cols:
+            numeric_cols.remove(target_column)
+
+        rows_before = len(df_clean)
+        outlier_mask_total = pd.Series(False, index=df_clean.index)
+
+        for col in numeric_cols:
+            q1 = df_clean[col].quantile(0.25)
+            q3 = df_clean[col].quantile(0.75)
+            iqr = q3 - q1
+            if iqr == 0:
+                continue
+
+            lower_bound = q1 - iqr_multiplier * iqr
+            upper_bound = q3 + iqr_multiplier * iqr
+            outlier_mask = (df_clean[col] < lower_bound) | (df_clean[col] > upper_bound)
+            outlier_count = int(outlier_mask.sum())
+
+            if outlier_count == 0:
+                continue
+
+            if method == 'clip':
+                df_clean[col] = df_clean[col].clip(lower=lower_bound, upper=upper_bound)
+                outlier_report[col] = {
+                    'outlier_count': outlier_count,
+                    'action': 'clipped',
+                    'lower_bound': round(float(lower_bound), 4),
+                    'upper_bound': round(float(upper_bound), 4)
+                }
+            elif method == 'remove':
+                outlier_mask_total = outlier_mask_total | outlier_mask
+                outlier_report[col] = {
+                    'outlier_count': outlier_count,
+                    'action': 'flagged_for_removal',
+                    'lower_bound': round(float(lower_bound), 4),
+                    'upper_bound': round(float(upper_bound), 4)
+                }
+
+        if method == 'remove' and outlier_mask_total.any():
+            df_clean = df_clean[~outlier_mask_total]
+            outlier_report['_summary'] = {'rows_removed': rows_before - len(df_clean)}
+
+        self.preprocessing_report['outlier_handling'] = outlier_report
+        return df_clean.reset_index(drop=True), outlier_report
 
     def full_preprocessing_pipeline(
         self,
@@ -245,7 +310,8 @@ class PreprocessingService:
                 'missing_strategy': 'auto',
                 'encoding_strategy': 'auto',
                 'scaling_method': 'standard',
-                'drop_threshold': 0.5
+                'drop_threshold': 0.5,
+                'outlier_handling': 'clip'
             }
         
         report = {'steps': [], 'original_shape': list(df.shape)}
@@ -271,7 +337,19 @@ class PreprocessingService:
             'shape_after': list(df.shape)
         })
         
-        # Step 3: Encode categorical columns
+# Step 3: Handle outliers (IQR-based) on raw numeric columns, before encoding
+        df, outlier_report = self.handle_outliers(
+            df,
+            target_column=target_column,
+            method=config.get('outlier_handling', 'clip')
+        )
+        report['steps'].append({
+            'step': 'outlier_handling',
+            'details': outlier_report,
+            'shape_after': list(df.shape)
+        })
+
+        # Step 4: Encode categorical columns
         df, encoding_report = self.encode_categorical(
             df, 
             target_column=target_column,
@@ -304,10 +382,6 @@ class PreprocessingService:
 
 
 def detect_problem_type(df: pd.DataFrame, target_column: str) -> Dict[str, Any]:
-    """
-    Auto-detect if problem is Classification or Regression.
-    Returns detailed analysis.
-    """
     if target_column not in df.columns:
         raise ValueError(f"Target column '{target_column}' not found in dataset")
     
@@ -322,33 +396,47 @@ def detect_problem_type(df: pd.DataFrame, target_column: str) -> Dict[str, Any]:
         'ratio': round(float(unique_values / total_values), 4)
     }
     
-    # Detection logic
+    # Check dtype first
     if target.dtype == 'object' or target.dtype.name == 'category':
         result['problem_type'] = 'classification'
         result['reason'] = 'Target is categorical (string/object type)'
         result['num_classes'] = int(unique_values)
         result['class_names'] = list(target.unique()[:10])
-        
-        if unique_values == 2:
-            result['sub_type'] = 'binary_classification'
-        else:
-            result['sub_type'] = 'multiclass_classification'
+        result['sub_type'] = 'binary_classification' if unique_values == 2 else 'multiclass_classification'
+        result['confidence'] = 0.99
     
-    elif unique_values <= 10 or (unique_values / total_values < 0.05):
-        result['problem_type'] = 'classification'
-        result['reason'] = f'Low cardinality numeric target ({unique_values} unique values)'
-        result['num_classes'] = int(unique_values)
-        result['class_names'] = [str(v) for v in sorted(target.unique()[:10])]
+    elif pd.api.types.is_numeric_dtype(target):
+        # REGRESSION conditions:
+        # 1. High unique values ratio (>5%)
+        # 2. OR more than 20 unique values
+        # 3. OR column name contains price/cost/amount/salary/revenue/income
         
-        if unique_values == 2:
-            result['sub_type'] = 'binary_classification'
+        price_keywords = ['price', 'cost', 'amount', 'salary', 'revenue', 
+                         'income', 'value', 'rent', 'fee', 'wage']
+        
+        col_lower = target_column.lower()
+        is_price_column = any(kw in col_lower for kw in price_keywords)
+        
+        if is_price_column:
+            result['problem_type'] = 'regression'
+            result['reason'] = f'Target column name "{target_column}" indicates a continuous price/value'
+            result['sub_type'] = 'regression'
+            result['confidence'] = 0.99
+        elif unique_values > 20 or (unique_values / total_values) > 0.05:
+            result['problem_type'] = 'regression'
+            result['reason'] = f'High cardinality numeric target ({unique_values} unique values)'
+            result['sub_type'] = 'regression'
+            result['confidence'] = 0.95 if (unique_values / total_values) > 0.5 else 0.80
         else:
-            result['sub_type'] = 'multiclass_classification'
+            result['problem_type'] = 'classification'
+            result['reason'] = f'Low cardinality numeric target ({unique_values} unique values)'
+            result['num_classes'] = int(unique_values)
+            result['class_names'] = [str(v) for v in sorted(target.unique()[:10])]
+            result['sub_type'] = 'binary_classification' if unique_values == 2 else 'multiclass_classification'
+            result['confidence'] = 0.85
     
-    else:
-        result['problem_type'] = 'regression'
-        result['reason'] = f'High cardinality numeric target ({unique_values} unique values, ratio: {result["ratio"]})'
-        result['sub_type'] = 'regression'
+    # Target stats for regression
+    if result.get('problem_type') == 'regression':
         result['target_stats'] = {
             'min': float(target.min()),
             'max': float(target.max()),
@@ -356,19 +444,5 @@ def detect_problem_type(df: pd.DataFrame, target_column: str) -> Dict[str, Any]:
             'std': float(target.std()),
             'median': float(target.median())
         }
-    
-    # Confidence score
-    if result['problem_type'] == 'classification':
-        if target.dtype == 'object':
-            result['confidence'] = 0.99
-        elif unique_values <= 5:
-            result['confidence'] = 0.95
-        else:
-            result['confidence'] = 0.85
-    else:
-        if result['ratio'] > 0.5:
-            result['confidence'] = 0.95
-        else:
-            result['confidence'] = 0.80
     
     return result
