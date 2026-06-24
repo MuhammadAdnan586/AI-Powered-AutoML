@@ -1,35 +1,35 @@
-# 🤖 AI-Powered AutoML Platform
+AI-Powered AutoML Platform
 
 A production-ready, full-stack **Automated Machine Learning SaaS platform** that enables users to upload datasets, automatically train and compare ML models, explain predictions, and deploy APIs — all without writing a single line of code.
 
 ---
 
-## 🚀 Live Demo
+Live Demo
 > Deploy with Docker and access at `http://localhost`
 
 ---
 
-## 🧠 What Problem Does It Solve?
+What Problem Does It Solve?
 
 Building and deploying machine learning models requires deep technical expertise, weeks of setup, and expensive infrastructure. This platform automates the entire ML lifecycle — from raw data to production API — in minutes.
 
 ---
 
-## ✨ Key Features
+Key Features
 
-### 🔬 Core AutoML Engine
+Core AutoML Engine
 - Automated model selection and hyperparameter tuning
 - Multi-algorithm benchmarking (Random Forest, XGBoost, Logistic Regression, etc.)
 - Feature engineering and data preprocessing pipeline
 
-### 📊 AI Intelligence Layer (Module 3)
+AI Intelligence Layer (Module 3)
 - **SHAP Explainability** — understand why the model made each prediction
 - **Data Quality Analyzer** — quality score, outlier detection, correlation matrix
 - **AI Chat Assistant** — ask questions about your dataset in natural language
 - **Auto PDF & Excel Reports** — one-click professional report generation
 - **Model Registry** — versioned model store with champion/staging promotion
 
-### 🏭 Production & SaaS Features (Module 4)
+Production & SaaS Features (Module 4)
 - **No-Code REST API Generator** — one-click API deployment for any trained model
 - **Scheduled Retraining** — cron-based automatic model retraining
 - **Role-Based Access Control (RBAC)** — admin, user, viewer roles
@@ -40,7 +40,7 @@ Building and deploying machine learning models requires deep technical expertise
 
 ---
 
-## 🛠️ Tech Stack
+Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -56,7 +56,7 @@ Building and deploying machine learning models requires deep technical expertise
 
 ---
 
-## 📁 Project Structure
+Project Structure
 
 ```
 AI-Powered-AutoML/
@@ -83,7 +83,7 @@ AI-Powered-AutoML/
 
 ---
 
-## ⚡ Quick Start
+Quick Start
 
 ### 1. Clone the repo
 ```bash
@@ -111,7 +111,7 @@ bash scripts/deploy.sh
 
 ---
 
-## 🔌 API Example — No-Code Prediction
+API Example — No-Code Prediction
 
 ```python
 import requests
@@ -137,7 +137,7 @@ print(prediction.json())
 
 ---
 
-## 👤 Author
+Author
 
 **Muhammad Adnan**
 Data Scientist | ML Engineer
