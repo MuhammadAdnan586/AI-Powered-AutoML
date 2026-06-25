@@ -50,37 +50,37 @@
   <tr>
     <td align="center" width="50%">
       <b>📊 Dashboard</b><br/><br/>
-      <img src="screenshot-dashboard.jpg" width="100%" alt="AutoML Dashboard"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM.jpeg" width="100%" alt="AutoML Dashboard"/>
     </td>
     <td align="center" width="50%">
       <b>🧹 Preprocessing — Dataset Preview & Quality Report</b><br/><br/>
-      <img src="screenshot-preprocessing.jpg" width="100%" alt="Preprocessing and data quality report"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (1).jpeg" width="100%" alt="Preprocessing"/>
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
       <b>🧠 Train Models — Feature-Engineered Dataset Ready</b><br/><br/>
-      <img src="screenshot-train.jpg" width="100%" alt="Train models step"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (2).jpeg" width="100%" alt="Train models"/>
     </td>
     <td align="center" width="50%">
       <b>🏆 Results — Best Performing Model</b><br/><br/>
-      <img src="screenshot-results.jpg" width="100%" alt="Best performing model results"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (1).jpeg" width="100%" alt="Results"/>
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
       <b>📋 Model Leaderboard</b><br/><br/>
-      <img src="screenshot-leaderboard.jpg" width="100%" alt="Model leaderboard ranking"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM.jpeg" width="100%" alt="Leaderboard"/>
     </td>
     <td align="center" width="50%">
       <b>🤖 AI Intelligence Layer</b><br/><br/>
-      <img src="screenshot-ai-layer.jpg" width="100%" alt="AI Intelligence Layer"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (2).jpeg" width="100%" alt="AI Layer"/>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
       <b>⚙️ SaaS & Production — No-Code API Generator</b><br/><br/>
-      <img src="screenshot-saas.jpg" width="60%" alt="SaaS and production features"/>
+      <img src="WhatsApp Image 2026-06-25 at 3.00.52 PM.jpeg" width="60%" alt="SaaS features"/>
     </td>
   </tr>
 </table>
