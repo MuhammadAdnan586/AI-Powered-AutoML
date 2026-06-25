@@ -2,7 +2,7 @@
 
 ![Header](https://capsule-render.vercel.app/api?type=waving&color=0:0f2027,50:203a43,100:2c5364&height=180&section=header&text=AI-Powered%20AutoML%20Platform&fontSize=40&fontColor=ffffff&fontAlignY=38&desc=Upload%20%E2%86%92%20Train%20%E2%86%92%20Explain%20%E2%86%92%20Deploy%20%E2%80%94%20No%20Code%20Required&descAlignY=58&descSize=16&descColor=a8d8ea)
 
-[![View Project](https://img.shields.io/badge/🌐%20Deploy-Docker%20Compose-0f2027?style=for-the-badge&logoColor=white)](#-quick-start)
+[![View Project](https://img.shields.io/badge/🌐%20Deploy-Docker%20Compose-0f2027?style=for-the-badge&logoColor=white)](#%EF%B8%8F-quick-start)
 [![License](https://img.shields.io/badge/License-MIT-2c5364?style=for-the-badge)](#-license)
 [![Stars](https://img.shields.io/github/stars/MuhammadAdnan586/AI-Powered-AutoML?style=for-the-badge&color=2c5364&label=Stars)](https://github.com/MuhammadAdnan586/AI-Powered-AutoML/stargazers)
 [![Last Commit](https://img.shields.io/github/last-commit/MuhammadAdnan586/AI-Powered-AutoML?style=for-the-badge&color=2c5364&label=Updated)](https://github.com/MuhammadAdnan586/AI-Powered-AutoML/commits/main)
@@ -46,30 +46,44 @@
 
 ### 🖼️ Screenshots
 
-<div align="center">
-
-**📊 Dashboard**
-<img src="WhatsApp Image 2026-06-25 at 3.00.50 PM.jpeg" width="85%" alt="AutoML Dashboard"/>
-
-**🧹 Preprocessing — Dataset Preview & Quality Report**
-<img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (1).jpeg" width="85%" alt="Preprocessing and data quality report"/>
-
-**🧠 Train Models — Feature-Engineered Dataset Ready**
-<img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (2).jpeg" width="85%" alt="Train models step"/>
-
-**🏆 Results — Best Performing Model**
-<img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (1).jpeg" width="85%" alt="Best performing model results"/>
-
-**📋 Model Leaderboard**
-<img src="WhatsApp Image 2026-06-25 at 3.00.51 PM.jpeg" width="85%" alt="Model leaderboard ranking"/>
-
-**🤖 AI Intelligence Layer**
-<img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (2).jpeg" width="85%" alt="AI Intelligence Layer"/>
-
-**⚙️ SaaS & Production — No-Code API Generator**
-<img src="WhatsApp Image 2026-06-25 at 3.00.52 PM.jpeg" width="85%" alt="SaaS and production features"/>
-
-</div>
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <b>📊 Dashboard</b><br/><br/>
+      <img src="screenshot-dashboard.jpg" width="100%" alt="AutoML Dashboard"/>
+    </td>
+    <td align="center" width="50%">
+      <b>🧹 Preprocessing — Dataset Preview & Quality Report</b><br/><br/>
+      <img src="screenshot-preprocessing.jpg" width="100%" alt="Preprocessing and data quality report"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <b>🧠 Train Models — Feature-Engineered Dataset Ready</b><br/><br/>
+      <img src="screenshot-train.jpg" width="100%" alt="Train models step"/>
+    </td>
+    <td align="center" width="50%">
+      <b>🏆 Results — Best Performing Model</b><br/><br/>
+      <img src="screenshot-results.jpg" width="100%" alt="Best performing model results"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <b>📋 Model Leaderboard</b><br/><br/>
+      <img src="screenshot-leaderboard.jpg" width="100%" alt="Model leaderboard ranking"/>
+    </td>
+    <td align="center" width="50%">
+      <b>🤖 AI Intelligence Layer</b><br/><br/>
+      <img src="screenshot-ai-layer.jpg" width="100%" alt="AI Intelligence Layer"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <b>⚙️ SaaS & Production — No-Code API Generator</b><br/><br/>
+      <img src="screenshot-saas.jpg" width="60%" alt="SaaS and production features"/>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -124,76 +138,3 @@ bash scripts/deploy.sh
 ---
 
 ### 📂 Project Structure
-
-```
-AI-Powered-AutoML/
-├── backend/              ← FastAPI app
-│   └── app/
-│       ├── api_generator/      ← No-code REST API generator
-│       ├── retraining/         ← Scheduled model retraining
-│       ├── notifications/      ← Email + in-app alerts
-│       ├── rbac/               ← Role-based access control
-│       ├── monitoring/         ← Health checks + metrics
-│       └── security/           ← Rate limiting + headers
-├── frontend/             ← Next.js UI
-├── chatbot/              ← AI chat assistant
-├── dashboard/            ← Chart data service
-├── data_quality/         ← Data quality analyzer
-├── explainability/       ← SHAP explainability
-├── model_registry/       ← Versioned model store
-├── reports/              ← PDF + Excel generation
-├── nginx/                ← Reverse proxy config
-├── docker/               ← Dockerfiles
-├── scripts/              ← Deploy + DB init scripts
-└── docker-compose.yml    ← Full stack orchestration
-```
-
----
-
-### 📡 API Example — No-Code Prediction
-
-```python
-import requests
-
-# Generate a prediction endpoint for your trained model
-r = requests.post(
-    "http://localhost:8000/api/v1/api-generator/generate",
-    headers={"Authorization": "Bearer <your-jwt-token>"},
-    json={"model_id": 5, "endpoint_name": "churn-predictor"}
-)
-slug = r.json()["slug"]
-api_key = r.json()["api_key"]
-
-# Call the public prediction endpoint (no login needed)
-prediction = requests.post(
-    f"http://localhost:8000/api/v1/api-generator/predict/{slug}",
-    headers={"X-API-Key": api_key},
-    json={"features": {"age": 35, "tenure": 12, "monthly_charges": 65.5}}
-)
-print(prediction.json())
-# {"prediction": 0, "probability": [0.82, 0.18], "model_name": "XGBoost"}
-```
-
----
-
-### 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-Feel free to check the [issues page](https://github.com/MuhammadAdnan586/AI-Powered-AutoML/issues) or open a pull request.
-
----
-
-### 📄 License
-
-This project is licensed under the **MIT License**.
-
----
-
-<div align="center">
-
-![Footer](https://capsule-render.vercel.app/api?type=waving&color=0:2c5364,50:203a43,100:0f2027&height=100&section=footer)
-
-Made with ❤️ by [**Muhammad Adnan**](https://github.com/MuhammadAdnan586) — Data Scientist | ML Engineer
-[LinkedIn](https://www.linkedin.com/in/m-adnan-12a816402) • [Portfolio](https://portfolio-eight-delta-7blam1yft8.vercel.app)
-
-</div>
