@@ -44,6 +44,34 @@
 
 ---
 
+### 🖼️ Screenshots
+
+<div align="center">
+
+**📊 Dashboard**
+<img src="WhatsApp Image 2026-06-25 at 3.00.50 PM.jpeg" width="85%" alt="AutoML Dashboard"/>
+
+**🧹 Preprocessing — Dataset Preview & Quality Report**
+<img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (1).jpeg" width="85%" alt="Preprocessing and data quality report"/>
+
+**🧠 Train Models — Feature-Engineered Dataset Ready**
+<img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (2).jpeg" width="85%" alt="Train models step"/>
+
+**🏆 Results — Best Performing Model**
+<img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (1).jpeg" width="85%" alt="Best performing model results"/>
+
+**📋 Model Leaderboard**
+<img src="WhatsApp Image 2026-06-25 at 3.00.51 PM.jpeg" width="85%" alt="Model leaderboard ranking"/>
+
+**🤖 AI Intelligence Layer**
+<img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (2).jpeg" width="85%" alt="AI Intelligence Layer"/>
+
+**⚙️ SaaS & Production — No-Code API Generator**
+<img src="WhatsApp Image 2026-06-25 at 3.00.52 PM.jpeg" width="85%" alt="SaaS and production features"/>
+
+</div>
+
+---
 
 ### 🛠️ Tech Stack
 
