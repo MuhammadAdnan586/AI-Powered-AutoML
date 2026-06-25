@@ -44,34 +44,6 @@
 
 ---
 
-### 🖼️ Screenshots
-
-<div align="center">
-
-**📊 Dashboard**
-<img src="screenshots/01-dashboard.jpeg" width="85%" alt="AutoML Dashboard"/>
-
-**🧹 Preprocessing — Dataset Preview & Quality Report**
-<img src="screenshots/02-preprocessing.jpeg" width="85%" alt="Preprocessing and data quality report"/>
-
-**🧠 Train Models — Feature-Engineered Dataset Ready**
-<img src="screenshots/03-train-models.jpeg" width="85%" alt="Train models step"/>
-
-**🏆 Results — Best Performing Model**
-<img src="screenshots/04-results.jpeg" width="85%" alt="Best performing model results"/>
-
-**📋 Model Leaderboard**
-<img src="screenshots/05-model-leaderboard.jpeg" width="85%" alt="Model leaderboard ranking"/>
-
-**🤖 AI Intelligence Layer**
-<img src="screenshots/06-ai-intelligence-layer.jpeg" width="85%" alt="AI Intelligence Layer"/>
-
-**⚙️ SaaS & Production — No-Code API Generator**
-<img src="screenshots/07-saas-production.jpeg" width="85%" alt="SaaS and production features"/>
-
-</div>
-
----
 
 ### 🛠️ Tech Stack
 
