@@ -47,9 +47,21 @@ Automated preprocessing + feature engineering, then parallel training across **X
 
 ### 🖼️ Platform Preview
 
-| Workspace Dashboard | Model Benchmark & Comparison |
+| 🏠 Workspace Dashboard | 🧹 Preprocessing & Data Quality |
 |---|---|
-| <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM.jpeg" width="420"/> | <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM.jpeg" width="420"/> |
+| <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM.jpeg" width="420"/> | <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (1).jpeg" width="420"/> |
+
+| ✅ Dataset Ready for Training | 📊 Model Benchmark & Comparison |
+|---|---|
+| <img src="WhatsApp Image 2026-06-25 at 3.00.50 PM (2).jpeg" width="420"/> | <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM.jpeg" width="420"/> |
+
+| 🏆 Model Leaderboard & Downloads | 🤖 AI Intelligence Layer |
+|---|---|
+| <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (1).jpeg" width="420"/> | <img src="WhatsApp Image 2026-06-25 at 3.00.51 PM (2).jpeg" width="420"/> |
+
+| 🔌 SaaS & Production — No-Code API Generator |
+|---|
+| <img src="WhatsApp Image 2026-06-25 at 3.00.52 PM.jpeg" width="860"/> |
 
 > 💡 Tip: move these screenshots into a `screenshots/` folder with clean filenames (e.g. `dashboard.png`, `benchmark.png`) and update the paths above — GitHub renders them fine either way, but it looks cleaner in the repo file tree.
 
