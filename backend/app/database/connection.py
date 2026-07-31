@@ -9,8 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # .env file load karo
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env'))
-
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/automl_saas")
 APP_DEBUG = os.getenv("APP_DEBUG", "false").lower() == "true"
 

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Database
-    DATABASE_URL: str = "mysql+pymysql://root:F2a7t7i0%40@localhost:3306/automl_saas"
+    DATABASE_URL: str = "mysql+pymysql://root:F2a7t7i0@localhost:3306/automl_saas"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

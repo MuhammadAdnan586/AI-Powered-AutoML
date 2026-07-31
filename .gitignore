@@ -21,3 +21,9 @@ frontend/.next/
 # Database
 *.db
 *.sqlite
+# frontend-new
+frontend-new/node_modules/
+frontend-new/.next/
+
+# RAG Vector Database (auto-generated, no need to push)
+backend/data/

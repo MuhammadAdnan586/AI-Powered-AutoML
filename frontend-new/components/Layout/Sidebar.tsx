@@ -18,8 +18,11 @@ export default function Sidebar() {
         <Link href="/dashboard" style={{display:"block", padding:"10px 12px", borderRadius:"8px", color: pathname === "/dashboard" ? "#38bdf8" : "#94a3b8", background: pathname === "/dashboard" ? "#0ea5e920" : "transparent", marginBottom:"4px", textDecoration:"none"}}>
           📊 Dashboard
         </Link>
-        <Link href="/datasets" style={{display:"block", padding:"10px 12px", borderRadius:"8px", color: pathname === "/datasets" ? "#38bdf8" : "#94a3b8", background: pathname === "/datasets" ? "#0ea5e920" : "transparent", marginBottom:"4px", textDecoration:"none"}}>
+<Link href="/datasets" style={{display:"block", padding:"10px 12px", borderRadius:"8px", color: pathname === "/datasets" ? "#38bdf8" : "#94a3b8", background: pathname === "/datasets" ? "#0ea5e920" : "transparent", marginBottom:"4px", textDecoration:"none"}}>
           🗄️ Datasets
+        </Link>
+                <Link href="/chat" style={{display:"block", padding:"10px 12px", borderRadius:"8px", color: pathname === "/chat" ? "#38bdf8" : "#94a3b8", background: pathname === "/chat" ? "#0ea5e920" : "transparent", marginBottom:"4px", textDecoration:"none"}}>
+          💬 Project Chat
         </Link>
       </nav>
 

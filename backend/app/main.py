@@ -117,7 +117,7 @@ safe_register("app.data_quality.routes", "router", "/api/v1", "Data Quality")
 safe_register("app.chatbot.routes", "router", "/api/v1", "Chatbot")
 safe_register("app.reports.routes", "router", "/api/v1", "Reports")
 safe_register("app.model_registry.routes", "router", "/api/v1", "Model Registry")
-
+safe_register("app.chatbot.project_chat_routes", "router", "/api/v1", "Project Docs Chatbot")
 # --- Module 4: Production & SaaS ---
 safe_register("app.api_generator.routes", "router", "/api/v1", "API Generator")
 safe_register("app.retraining.routes", "router", "/api/v1", "Retraining")
