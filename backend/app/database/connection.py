@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 # .env file load karo
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/automl_saas")
+
+# Railway ka MYSQL_URL kabhi "mysql://" format mein deta hai — 
+# ise force "mysql+pymysql://" bana dete hain taake sahi driver use ho
+if DATABASE_URL.startswith("mysql://"):
+    DATABASE_URL = DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
 APP_DEBUG = os.getenv("APP_DEBUG", "false").lower() == "true"
 
 engine = create_engine(
