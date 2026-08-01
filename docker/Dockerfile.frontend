@@ -1,8 +1,7 @@
 # ── Frontend Dockerfile ──────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
-
 WORKDIR /app
-
+ENV NEXT_PUBLIC_API_URL=https://ai-powered-automl-production.up.railway.app
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
