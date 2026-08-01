@@ -136,7 +136,7 @@ export default function ProjectChatPage() {
               {/* Sources — sirf assistant messages ke liye, transparency ke liye */}
               {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {[...new Set(msg.sources.map((s) => s.file))].map((file) => (
+                  {Array.from(new Set(msg.sources.map((s) => s.file))).map((file) => (
                     <span
                       key={file}
                       className="flex items-center gap-1 text-[11px] text-slate-500 bg-slate-900/60 border border-slate-800 rounded-md px-2 py-0.5"
