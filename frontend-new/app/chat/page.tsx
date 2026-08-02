@@ -13,10 +13,10 @@ type Message = {
 };
 
 const SUGGESTED_QUESTIONS = [
-  "Ye project kya karta hai?",
-  "AutoML SaaS Platform ke features kya hain?",
-  "Data quality kaise check hoti hai?",
-  "Explainability (SHAP) kaise kaam karta hai?",
+  "What does this project do?",
+  "What are the features of the AutoML SaaS Platform?",
+  "How does data quality checking work?",
+  "How does Explainability (SHAP) work?",
 ];
 
 export default function ProjectChatPage() {
@@ -162,7 +162,7 @@ export default function ProjectChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-            placeholder="Project ke bare mein poochein..."
+            placeholder="Ask about the project..."
             className="input flex-1"
             disabled={loading}
           />
