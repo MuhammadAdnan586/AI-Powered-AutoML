@@ -24,7 +24,7 @@ CHROMA_DB_PATH = str(
     Path(__file__).resolve().parent.parent.parent / "data" / "project_knowledge_base"
 )
 COLLECTION_NAME = "project_docs"
-TOP_K = 6
+TOP_K = 10
 
 
 class ProjectDocsAssistant:
