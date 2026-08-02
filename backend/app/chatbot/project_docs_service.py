@@ -5,13 +5,6 @@ RAG-powered chat assistant jo user ke sawalon ka jawab AAPKE
 AutoML PROJECT ki documentation (README + code docstrings) se
 deta hai — DatasetChatAssistant ki tarah, lekin dataset ki bajaye
 poore project ke knowledge base se.
-
-Farq DatasetChatAssistant se:
-  - DatasetChatAssistant: poori dataset summary HAMESHA prompt mein
-    daal deta hai (chota hota hai, is liye chalta hai)
-  - ProjectDocsAssistant: RAG use karta hai — har sawal par sirf
-    RELEVANT chunks retrieve karta hai Vector Database se, taake
-    poori documentation baar baar na bhejni pare
 """
 
 import os
@@ -22,7 +15,6 @@ import chromadb
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# Project root ki .env file load karo (chatbot -> app -> backend -> root)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 load_dotenv(dotenv_path=_PROJECT_ROOT / ".env")
 
@@ -32,7 +24,7 @@ CHROMA_DB_PATH = str(
     Path(__file__).resolve().parent.parent.parent / "data" / "project_knowledge_base"
 )
 COLLECTION_NAME = "project_docs"
-TOP_K = 6  # kitne chunks retrieve karne hain har query par
+TOP_K = 6
 
 
 class ProjectDocsAssistant:
@@ -47,9 +39,6 @@ class ProjectDocsAssistant:
         self.conversation_history: List[Dict] = []
         self.model = genai.GenerativeModel(model_name="gemini-2.5-flash")
 
-    # ------------------------------------------------------------------
-    # Vector Database Load Karna
-    # ------------------------------------------------------------------
     def _load_collection(self):
         if not os.path.exists(CHROMA_DB_PATH):
             raise RuntimeError(
@@ -59,9 +48,6 @@ class ProjectDocsAssistant:
         client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
         return client.get_collection(name=COLLECTION_NAME)
 
-    # ------------------------------------------------------------------
-    # STEP 1: Retrieval — query se related chunks dhoondna
-    # ------------------------------------------------------------------
     def _retrieve_context(self, query: str, top_k: int = TOP_K) -> List[Dict]:
         results = self._collection.query(query_texts=[query], n_results=top_k)
         chunks = []
@@ -73,41 +59,45 @@ class ProjectDocsAssistant:
             chunks.append({"text": doc, "metadata": meta, "distance": distance})
         return chunks
 
-    # ------------------------------------------------------------------
-    # STEP 2: Prompt Banana — Faithfulness Ke Sath
-    # ------------------------------------------------------------------
     def _build_prompt(self, user_question: str, retrieved_chunks: List[Dict]) -> str:
         context_text = "\n\n".join(
             f"[Source: {c['metadata'].get('file', 'unknown')}]\n{c['text']}"
             for c in retrieved_chunks
         )
 
-        return f"""Tum AI-Powered-AutoML project ke liye ek helpful documentation
-assistant ho. Neeche project ki documentation se retrieve kiye gaye
-RELEVANT sections diye gaye hain.
+        return f"""CRITICAL LANGUAGE RULE — READ THIS FIRST:
+You must respond ONLY in English, using the Latin/Roman alphabet (a-z, A-Z).
+Do NOT use Hindi, Urdu, Devanagari script, Chinese, Arabic script, or any
+other language or script — no matter what language the user's question is
+written in. Your entire response must be plain English text only.
 
-RULES (Faithfulness — zaroori hai follow karna):
-- SIRF neeche diye gaye CONTEXT ke basis par jawab do
-- Agar context mein jawab nahi hai, saaf keh do: "Ye information
-  mujhe available documentation mein nahi mili"
-- Apni taraf se koi feature, detail, ya assumption MAT add karo
-- Jawab clear aur seedha do, technical jargon zyada mat use karo
+You are a helpful documentation assistant for the AI-Powered-AutoML project.
+Below are RELEVANT sections retrieved from the project's documentation.
+
+RULES (Faithfulness — must follow):
+- Answer ONLY based on the CONTEXT provided below
+- If the answer is not in the context, clearly say:
+  "This information is not available in the current documentation"
+- Do NOT add any feature, detail, or assumption on your own
+- Keep the answer clear and direct, avoid excessive technical jargon
 
 === RETRIEVED CONTEXT ===
 {context_text}
 ==========================
 
-User ka sawal: {user_question}
+User's question: {user_question}
+
+REMINDER: Respond in English only, using the Latin alphabet.
 """
 
-    # ------------------------------------------------------------------
-    # STEP 3: Chat — Retrieval + Generation Dono Ek Saath
-    # ------------------------------------------------------------------
     def chat(self, user_message: str) -> Dict:
         retrieved_chunks = self._retrieve_context(user_message)
         prompt = self._build_prompt(user_message, retrieved_chunks)
 
-        response = self.model.generate_content(prompt)
+        response = self.model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.1},
+        )
         assistant_message = response.text
 
         self.conversation_history.append({"role": "user", "content": user_message})
