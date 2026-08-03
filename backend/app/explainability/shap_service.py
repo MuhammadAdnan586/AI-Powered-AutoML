@@ -20,6 +20,28 @@ ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class SHAPExplainer:
+    """
+    SHAP (SHapley Additive exPlanations) based model explainability engine.
+
+    This class explains WHY a trained ML model made its predictions, by
+    computing SHAP values that show how much each feature contributed to
+    a prediction (positively or negatively).
+
+    It automatically selects the right SHAP explainer based on model type:
+      - TreeExplainer: for tree-based models (Random Forest, Gradient
+        Boosting, XGBoost, LightGBM, Decision Tree, Extra Trees) — fast
+        and exact.
+      - LinearExplainer: for linear models (Logistic Regression, Linear
+        Regression, Ridge, Lasso, SGD) — fast and exact.
+      - KernelExplainer: fallback for any other model type (e.g. KNN,
+        SVM) — model-agnostic but slower, since it approximates SHAP
+        values using sampling.
+
+    Typical usage: after AutoML training finishes, call
+    get_full_explanation() to produce feature importance rankings plus
+    summary and waterfall plots for the trained model.
+    """
+
     def __init__(self, model, X_train: pd.DataFrame, model_type: str = "tree"):
         self.model = model
         self.X_train = X_train
@@ -30,6 +52,7 @@ class SHAPExplainer:
         self._init_explainer()
 
     def _init_explainer(self):
+        """Pick TreeExplainer, LinearExplainer, or KernelExplainer based on model type."""
         try:
             model_name = type(self.model).__name__.lower()
             tree_models = ["randomforest", "gradientboosting", "xgb", "lgbm", "decisiontree", "extratrees"]
@@ -71,10 +94,14 @@ class SHAPExplainer:
         return shap_vals
 
     def compute_shap_values(self, X_sample: pd.DataFrame) -> np.ndarray:
-        # Avoid recomputing the same SHAP values multiple times within one
-        # explanation request (feature importance + summary plot + waterfall
-        # plot all call this with the identical X_sample, which is expensive
-        # for KernelExplainer-based models like KNN/SVM).
+        """
+        Compute SHAP values for a sample of rows from the dataset.
+
+        Results are cached so that feature importance, summary plot, and
+        waterfall plot (which all need the same SHAP values) don't trigger
+        redundant, expensive recomputation — this matters especially for
+        KernelExplainer-based models (KNN, SVM), which are slow.
+        """
         if self.shap_values is not None and self._cached_X_sample is X_sample:
             return self.shap_values
         self.shap_values = self.explainer.shap_values(X_sample)
@@ -82,6 +109,12 @@ class SHAPExplainer:
         return self.shap_values
 
     def get_feature_importance(self, X_sample: pd.DataFrame) -> dict:
+        """
+        Rank features by their average absolute SHAP value across the
+        sample — i.e. which features have the biggest overall impact on
+        the model's predictions. Returns a list of {feature, importance}
+        records sorted from most to least important.
+        """
         shap_vals = self.compute_shap_values(X_sample)
 
         if isinstance(shap_vals, list):
@@ -110,6 +143,11 @@ class SHAPExplainer:
         return importance.to_dict(orient="records")
 
     def plot_summary(self, X_sample: pd.DataFrame, save_path: str = None) -> str:
+        """
+        Generate a SHAP summary bar plot — a single chart ranking every
+        feature by its average impact on model predictions. Saved as a
+        PNG image and the file path is returned.
+        """
         shap_vals = self.compute_shap_values(X_sample)
         shap_vals = self._get_shap_values_2d(shap_vals)
 
@@ -123,6 +161,13 @@ class SHAPExplainer:
         return save_path
 
     def plot_waterfall(self, X_sample: pd.DataFrame, instance_idx: int = 0, save_path: str = None) -> str:
+        """
+        Generate a SHAP waterfall plot for ONE specific row (instance_idx)
+        in the sample — shows exactly how each feature pushed that single
+        prediction up or down from the model's baseline/expected value.
+        Useful for explaining an individual prediction rather than the
+        model as a whole. Saved as a PNG image.
+        """
         try:
             shap_vals = self.compute_shap_values(X_sample)
             shap_vals_2d = self._get_shap_values_2d(shap_vals)
@@ -148,6 +193,11 @@ class SHAPExplainer:
             return self.plot_summary(X_sample, save_path)
 
     def plot_force(self, X_sample: pd.DataFrame, instance_idx: int = 0, save_path: str = None) -> str:
+        """
+        Generate an interactive SHAP force plot (HTML) for one row —
+        an alternative, more compact visualization of the same
+        per-prediction explanation as the waterfall plot.
+        """
         try:
             shap_vals = self.compute_shap_values(X_sample)
             shap_vals_2d = self._get_shap_values_2d(shap_vals)
@@ -169,6 +219,12 @@ class SHAPExplainer:
             return ""
 
     def get_full_explanation(self, X_sample: pd.DataFrame, dataset_id: int) -> dict:
+        """
+        Produce the complete SHAP explainability report for a trained
+        model: ranked feature importance, a summary plot, and a waterfall
+        plot for the first sample row. This is the main entry point used
+        by the /explainability/explain API endpoint.
+        """
         feature_importance = self.get_feature_importance(X_sample)
         summary_plot = self.plot_summary(
             X_sample,
